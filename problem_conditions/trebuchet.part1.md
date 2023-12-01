@@ -1,4 +1,5 @@
-### --- Day 1: Trebuchet?! ---
+## --- Day 1: Trebuchet?! ---
+### --- Part One ---
 `...`  
 The newly-improved calibration document consists of lines of text;
 each line originally contained a specific **calibration value** that the Elves
