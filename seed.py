@@ -1,29 +1,8 @@
 import re
-from collections import defaultdict
-from functools import lru_cache
-from typing import Iterable
+from typing import Sequence
 
 
 def get_info(path: str):
-    maps_dict = defaultdict(list)
-    with open(path) as file:
-        first_line = file.readline()
-        seed_numbers = tuple([
-            int(digit)
-            for digit in re.findall(r"\d+", first_line)
-        ])
-        for map_text in re.finditer(r"(\w+)-to-(\w+) map:([\s\d]*)", file.read()):
-            first_word = map_text.group(1)
-            second_word = map_text.group(2)
-            key = (first_word, second_word)
-            for threesome in re.findall(r"(?:\s+\d+){3}", map_text.group(3)):
-                threesome = tuple(map(int, threesome.strip().split()))
-                maps_dict[key].append(threesome)
-            maps_dict[key] = tuple(maps_dict[key])
-        return seed_numbers, maps_dict
-
-
-def get_info_v2(path: str):
     maps_dict = {}
     with open(path) as file:
         seed_numbers = tuple([
@@ -43,94 +22,106 @@ def get_info_v2(path: str):
         return seed_numbers, maps_dict
 
 
-@lru_cache
-def get_dst_num(src_num, threesomes: tuple, step: str):
-    for threesome in threesomes:
-        if src_num < threesome[1]:
-            continue
-        if src_num >= threesome[1] + threesome[2]:
-            continue
-        delta = threesome[0] - threesome[1]
-        return src_num + delta
-    return src_num
+def map_join(first_map: list, second_map: list):
+    map3_list = []
+    borders = set()
+    for a, a_delta, a_count in first_map:
+        borders.add(a + a_delta)
+        borders.add(a + a_delta + a_count)
+    for b, b_delta, b_count in second_map:
+        borders.add(b)
+        borders.add(b + b_count)
+
+    borders = sorted(borders)
+
+    segments = []
+    for i in range(len(borders) - 1):
+        segments.append((borders[i], borders[i + 1]))
+
+    for segment in segments:
+        segment_start = segment[0]
+
+        left_delta = 0
+        for a, a_delta, a_count in first_map:
+            if (a + a_delta) <= segment_start < (a + a_delta + a_count):
+                left_delta = a_delta
+                break
+
+        right_delta = 0
+        for b, b_delta, b_count in second_map:
+            if b <= segment_start < (b + b_count):
+                right_delta = b_delta
+                break
+
+        c = segment_start - left_delta
+        c_delta = left_delta + right_delta
+        c_count = segment[1] - segment[0]
+        map3_list.append((c, c_delta, c_count))
+    return map3_list
 
 
-def get_min_num(seeds: list, maps: dict, from_el: str, to_el: str):
-    current_list = [(from_el, seed_num) for seed_num in seeds]
-    next_list = []
-    locations = []
-    while current_list:
-        for element_name, element_num in current_list:
-            for (map_src, map_dst), threesomes in maps.items():
-                if map_src != element_name:
-                    continue
-                dst_num = get_dst_num(element_num, threesomes, element_name)
-                if map_dst == to_el:
-                    locations.append(dst_num)
-                else:
-                    next_list.append((map_dst, dst_num))
-        current_list = next_list
-        next_list = []
-    return min(locations)
+def build_seed_to_location_map(maps: dict) -> list[tuple]:
+    while (next_element := maps['seed']['next']) != 'location':
+        first_map = maps['seed']['threesomes']
+        second_map = maps[next_element]['threesomes']
+        new_map = map_join(first_map, second_map)
+        maps['seed']['threesomes'] = new_map
+        maps['seed']['next'] = maps[next_element]['next']
+    return sorted(maps['seed']['threesomes'], key=lambda x: x[0])
+
+
+def get_new_number(num: int, threesomes: list[tuple]):
+    for start, delta, count in threesomes:
+        if num < start:
+            continue
+        if num >= start + count:
+            continue
+        return num + delta
+    return num
 
 
 def get_min_location_part1(path: str):
     seeds, maps = get_info(path)
-    return get_min_num(seeds, maps, 'seed', 'location')
+    seed_to_loc_threesomes = build_seed_to_location_map(maps)
+    locations = [get_new_number(seed, seed_to_loc_threesomes) for seed in seeds]
+    return min(locations)
 
 
-def join_all_maps(maps: dict, from_el: str, to_el: str):
-    pass
-
-
-def get_min_location_part1_v2(path: str):
-    seeds, maps = get_info_v2(path)
-    print(maps)
-    return get_min_num(seeds, maps, 'seed', 'location')
-
-
-def pairs(l: Iterable):
+def pairs(seq: Sequence):
     i = 0
-    while i < len(l) - 1:
-        yield l[i], l[i + 1]
+    while i < len(seq) - 1:
+        yield seq[i], seq[i + 1]
         i += 2
 
 
-def get_min_location_part2(path: str):
+def get_min_location_part2_v2(path: str):
     seeds, maps = get_info(path)
-    new_seeds = []
-    for seed_number, seed_offset in pairs(seeds):
-        new_seeds.append((seed_number, seed_number + seed_offset - 1))
-
-    new_maps = {
-        (el_dst, el_src): tuple([
-            (threesome[1], threesome[0], threesome[2])
-            for threesome in threesomes
-        ])
-        for (el_src, el_dst), threesomes in maps.items()
-    }
-
-    return get_min_num(new_seeds, new_maps, from_el='location', to_el='seed')
-    location = 0
-    while True:
-        seed_num = get_min_num([location], new_maps, 'location', 'seed')
-        print(location, seed_num)
-        pass
-        for min_seed, max_seed in new_seeds:
-            if min_seed <= seed_num <= max_seed:
-                return location
-        location += 1
+    seed_to_loc_threesomes = build_seed_to_location_map(maps)
+    seed_to_loc_threesomes = sorted(
+        seed_to_loc_threesomes,
+        key=lambda x: x[0] + x[1]
+    )
+    seeds = sorted(pairs(seeds), key=lambda x: x[0])
+    for start, delta, count in seed_to_loc_threesomes:
+        for seed_start, seed_count in seeds:
+            if seed_start + seed_count - 1 < start:
+                # last seed < first segment seed
+                continue
+            if seed_start >= start + count:
+                # first seed > last segment seed
+                continue
+            return max(seed_start, start) + delta
 
 
 if __name__ == '__main__':
-    part1_example_result = get_min_location_part1_v2('inputs/seed.example.in')
+    part1_example_result = get_min_location_part1('inputs/seed.example.in')
     print(part1_example_result)  # 35
-    #
-    # part1_result = get_min_location_part1('inputs/seed.in')
-    # print(part1_result)  # 227653707
 
-    # part2_example_result = get_min_location_part2('inputs/seed.example.in')
-    # print(part2_example_result)
+    part1_result = get_min_location_part1('inputs/seed.in')
+    print(part1_result)  # 227653707
 
-    # part2_result = get_min_location_part2('inputs/seed.in')
-    # print(part2_result)
+    part2_example_result = get_min_location_part2_v2('inputs/seed.example.in')
+    print(part2_example_result)  # 46
+
+    part2_result = get_min_location_part2_v2('inputs/seed.in')
+    print(part2_result)  # 78775051
