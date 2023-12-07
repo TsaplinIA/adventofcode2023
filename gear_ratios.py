@@ -1,4 +1,5 @@
 import re
+import uuid
 from collections import defaultdict
 
 
@@ -83,9 +84,36 @@ def gear_ratios_sum(path: str):
     return main_sum
 
 
+def part_sum_v2(path: str):
+    id_to_digits = {}
+    digits = {}
+    for line_idx, line in enumerate(lines(path)):
+        for match in re.finditer(rf'\d+', line):
+            d_id = uuid.uuid1()
+            id_to_digits[d_id] = int(match.group())
+            left, right = match.span()
+            for i in range(left, right):
+                digits[(line_idx, i)] = d_id
+
+    parts_sum = 0
+    for line_idx, line in enumerate(lines(path)):
+        for match in re.finditer(rf'[^.\d]', line):
+            nums = set()
+            el_idx = match.span()[0]
+            for x in range(el_idx - 1, el_idx + 2):
+                for y in range(line_idx - 1, line_idx + 2):
+                    nums.add(digit_id) if (digit_id := digits.get((y, x))) else ...
+            parts_sum += sum(map(lambda x: id_to_digits[x], nums))
+
+    return parts_sum
+
+
 if __name__ == '__main__':
     example_parts_sum_res = parts_sum('inputs/gear_ratios.example.in')
     print(example_parts_sum_res)  # 4361
+
+    example_parts_sum_res_v2 = part_sum_v2('inputs/gear_ratios.example.in')
+    print(example_parts_sum_res_v2)  # 4361
 
     parts_sum_res = parts_sum('inputs/gear_ratios.in')
     print(parts_sum_res)  # 531932
