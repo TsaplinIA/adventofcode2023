@@ -1,9 +1,3 @@
-def lines(path: str):
-    with open(path) as file:
-        while line := file.readline():
-            yield line.strip()
-
-
 def elements(path: str):
     with open(path) as file:
         line_idx = 0
@@ -16,18 +10,18 @@ def elements(path: str):
 def get_sum_of_deltas(path: str, scale: int):
     rows = []
     cols = []
-    for line_idx, line in enumerate(lines(path)):
-        for char_idx, char in enumerate(line):
-            current = 1 if char != '.' else scale
-            if char_idx < len(cols):
-                cols[char_idx] = min(cols[char_idx], current)
-            else:
-                cols.append(current)
+    for line_idx, char_idx, char in elements(path):
+        current = 1 if char != '.' else scale
+        if char_idx < len(cols):
+            cols[char_idx] = min(cols[char_idx], current)
+        else:
+            cols.append(current)
 
-            if line_idx < len(rows):
-                rows[line_idx] = min(rows[line_idx], current)
-            else:
-                rows.append(current)
+        if line_idx < len(rows):
+            rows[line_idx] = min(rows[line_idx], current)
+        else:
+            rows.append(current)
+
     for r_idx in range(1, len(rows)):
         rows[r_idx] += rows[r_idx - 1]
     for c_idx in range(1, len(cols)):
@@ -35,14 +29,14 @@ def get_sum_of_deltas(path: str, scale: int):
 
     galaxies = []
     sum_of_deltas = 0
-    for line_idx, line in enumerate(lines(path)):
-        for char_idx, char in enumerate(line):
-            if char == '.':
-                continue
-            sum_of_deltas += sum(map(lambda galaxy: abs(rows[line_idx] - rows[galaxy[0]]), galaxies))
-            sum_of_deltas += sum(map(lambda galaxy: abs(cols[char_idx] - cols[galaxy[1]]), galaxies))
-            galaxies.append((line_idx, char_idx))
+    for line_idx, char_idx, char in elements(path):
+        if char == '.':
+            continue
+        sum_of_deltas += sum(map(lambda galaxy: abs(rows[line_idx] - rows[galaxy[0]]), galaxies))
+        sum_of_deltas += sum(map(lambda galaxy: abs(cols[char_idx] - cols[galaxy[1]]), galaxies))
+        galaxies.append((line_idx, char_idx))
     return sum_of_deltas
+
 
 if __name__ == '__main__':
     res_part1_example = get_sum_of_deltas('inputs/cosmic_expansion.example.in', 2)
